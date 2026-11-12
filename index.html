@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Rastgele Girdi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tek ekran tezgâh — üstte araç çubuğu, ortada girdi sahnesi (görsel ya da dev kelime), altta tek büyük "Yeni girdi" düğmesi. Projeksiyonda tam ekran, telefonda tek sütun. */
+:root {
+  --bg: #eef0f4;          /* soğuk kâğıt */
+  --surface: #ffffff;
+  --stage: #e3e6ec;       /* görselin oturduğu zemin */
+  --ink: #15171d;
+  --muted: #5b6070;
+  --line: #cdd1da;
+  --accent: #2f45d1;      /* ultramarin: tek vurgu */
+  --accent-ink: #ffffff;
+  --warn: #c2410c;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1016; --surface: #171a22; --stage: #1d212b; --ink: #e8eaf0; --muted: #9aa0b2;
+    --line: #2c313d; --accent: #8593ff; --accent-ink: #0e1016; --warn: #fb923c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1016; --surface: #171a22; --stage: #1d212b; --ink: #e8eaf0; --muted: #9aa0b2;
+  --line: #2c313d; --accent: #8593ff; --accent-ink: #0e1016; --warn: #fb923c; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+.app { height: 100%; display: grid; grid-template-rows: auto auto 1fr auto auto; gap: 12px; max-width: 1600px; margin-inline: auto; }
+
+/* Araç çubuğu */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; letter-spacing: -0.01em; margin: 0; }
+.brand .src { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.src .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+.src.live .dot { background: #16a34a; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg button { font: 500 0.85rem var(--font-body); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.tools { display: flex; align-items: center; gap: 8px; }
+select, .ghost {
+  font: 500 0.85rem var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer;
+}
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Odak satırı */
+.focus { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.focus label { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.focus input { flex: 1; min-width: 0; font: 600 clamp(1rem, 1.6vw, 1.35rem) var(--font-display); color: var(--ink); background: transparent; border: 0; padding: 4px 0; }
+.focus input::placeholder { color: var(--muted); font-weight: 400; }
+
+/* Sahne */
+.stage { position: relative; min-height: 0; background: var(--stage); border-radius: var(--r); overflow: hidden; display: grid; place-items: center; }
+.stage img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.word { font-family: var(--font-display); font-weight: 800; font-size: clamp(3rem, 11vw, 11rem); line-height: 0.95; letter-spacing: -0.03em; text-align: center; text-wrap: balance; padding: 0.3em; margin: 0; overflow-wrap: anywhere; }
+.timebar { position: absolute; inset: 0 0 auto 0; height: 6px; background: transparent; }
+.timebar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s linear; }
+.stage.done .timebar span { background: var(--warn); }
+.loading { position: absolute; inset: auto 0 14px 0; text-align: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.stage.busy > img, .stage.busy > .word { opacity: 0.35; transition: opacity 0.2s; }
+.ended { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: var(--warn); color: #fff; font: 600 0.9rem var(--font-body); padding: 6px 14px; border-radius: 999px; }
+
+/* Künye */
+.credit { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: 0.85rem; color: var(--muted); min-height: 1.4em; }
+.credit .no { font-family: var(--font-mono); color: var(--ink); font-weight: 500; }
+.credit .kind { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.72rem; }
+.credit .ttl { color: var(--ink); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.credit a { color: var(--accent); }
+
+/* Alt kontroller */
+.controls { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+.big { font: 700 clamp(1.05rem, 1.8vw, 1.4rem) var(--font-display); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 16px 28px; cursor: pointer; }
+.big:active { transform: translateY(1px); }
+.nav { display: flex; gap: 8px; }
+.nav button { width: 52px; height: 52px; border-radius: 50%; font-size: 1.2rem; }
+.clock { font: 500 clamp(1.4rem, 2.4vw, 2rem) var(--font-mono); font-variant-numeric: tabular-nums; min-width: 4.5ch; text-align: right; background: none; border: 0; color: var(--ink); cursor: pointer; padding: 6px 4px; }
+.clock.off { color: var(--muted); font-size: 1rem; }
+.hint { font-size: 0.78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 18px; justify-content: space-between; }
+.hint kbd { font-family: var(--font-mono); font-size: 0.72rem; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); color: var(--ink); }
+
+@media (max-width: 640px) {
+  .app { grid-template-rows: auto auto minmax(260px, 1fr) auto auto; }
+  .brand { width: 100%; }
+  .seg { width: 100%; justify-content: space-between; }
+  .seg button { flex: 1; padding-inline: 6px; }
+  .controls { grid-template-columns: auto 1fr; }
+  .controls .clock { grid-column: 1 / -1; grid-row: 1; text-align: center; }
+  .hint .keys { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+:fullscreen body, :fullscreen { background: var(--bg); }
+</style>
+
+<div class="app" id="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>Rastgele Girdi</h1>
+      <span class="src" id="src"><span class="dot"></span><span id="srcText">Hazırlanıyor</span></span>
+    </div>
+    <div class="seg" role="group" aria-label="Girdi türü" id="kinds">
+      <button type="button" data-k="karisik" aria-pressed="true">Karışık</button>
+      <button type="button" data-k="foto" aria-pressed="false">Fotoğraf</button>
+      <button type="button" data-k="sanat" aria-pressed="false">Sanat</button>
+      <button type="button" data-k="kelime" aria-pressed="false">Kelime</button>
+    </div>
+    <div class="tools">
+      <select id="sure" aria-label="Süre">
+        <option value="0">Süre: kapalı</option>
+        <option value="60">1 dk</option>
+        <option value="120">2 dk</option>
+        <option value="180" selected>3 dk</option>
+        <option value="300">5 dk</option>
+        <option value="600">10 dk</option>
+      </select>
+      <button type="button" class="ghost" id="fs" title="Tam ekran (F)">Tam ekran</button>
+    </div>
+  </header>
+
+  <div class="focus">
+    <label for="odak">Odak</label>
+    <input id="odak" type="text" maxlength="120" placeholder="Üzerinde düşündüğünüz problem — örn. “Kampüste bekleme alanları”" autocomplete="off">
+  </div>
+
+  <main class="stage" id="stage" aria-live="polite">
+    <div class="timebar"><span id="tb"></span></div>
+    <p class="word" id="word">Pusula</p>
+    <img id="img" alt="" hidden>
+    <div class="loading" id="loading" hidden>Girdi çekiliyor…</div>
+    <div class="ended" id="ended" hidden>Süre doldu</div>
+  </main>
+
+  <div class="credit" id="credit">
+    <span class="no" id="no">Nº 01</span>
+    <span class="kind" id="kind">Kelime</span>
+    <span class="ttl" id="ttl">Türkçe somut isim</span>
+    <span id="meta"></span>
+  </div>
+
+  <div class="controls">
+    <div class="nav">
+      <button type="button" class="ghost" id="prev" aria-label="Önceki girdi" title="Önceki (←)">←</button>
+      <button type="button" class="ghost" id="next" aria-label="Sonraki girdi" title="Sonraki (→)">→</button>
+    </div>
+    <button type="button" class="big" id="yeni">Yeni girdi</button>
+    <button type="button" class="clock off" id="clock" title="Sayacı durdur/başlat (T)">süre yok</button>
+  </div>
+
+  <footer class="hint">
+    <span>Girdiyi değiştirmeyin ve seçmeyin: onunla odak arasında bağlantı kurun. <em>— Edward de Bono, Rastgele Girdi</em></span>
+    <span class="keys"><kbd>Boşluk</kbd> yeni girdi · <kbd>←</kbd><kbd>→</kbd> geçmiş · <kbd>T</kbd> sayaç · <kbd>F</kbd> tam ekran</span>
+  </footer>
+</div>
+
+<script>
+const HAVUZ = /*HAVUZ*/[{"f":"c001.jpg","t":"foto","b":"Trier, 09-12-2023 (actm.) 04","y":"Agnes Monkelbaan","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Trier,_09-12-2023_(actm.)_04.jpg","s":"Wikimedia Commons"},{"f":"c002.jpg","t":"foto","b":"Monasterio de El Escorial en Madrid","y":"Zvonimir Stamenov","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Monasterio_de_El_Escorial_en_Madrid.jpg","s":"Wikimedia Commons"},{"f":"c003.jpg","t":"foto","b":"Rue des Anes Brules in St-Clair (1)","y":"Tournasol7","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Rue_des_Anes_Brules_in_St-Clair_(1).jpg","s":"Wikimedia Commons"},{"f":"c004.jpg","t":"foto","b":"Sturnus vulgaris (European starling) at Bodega Head-1209","y":"Frank Schulenburg","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Sturnus_vulgaris_(European_starling)_at_Bodega_Head-1209.jpg","s":"Wikimedia Commons"},{"f":"c005.jpg","t":"foto","b":"La Palma - Roque del Teneguia - 2","y":"Ingo Mehling","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:La_Palma_-_Roque_del_Teneguia_-_2.jpg","s":"Wikimedia Commons"},{"f":"c006.jpg","t":"foto","b":"Teresa Brambilla by Antoine Maurin (1845)","y":"Antoine Maurin / Adam Cuerden","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Teresa_Brambilla_by_Antoine_Maurin_(1845).jpg","s":"Wikimedia Commons"},{"f":"c007.jpg","t":"foto","b":"Ebbegebirge vom Schomberg","y":"Jörg Braukmann","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Ebbegebirge_vom_Schomberg.jpg","s":"Wikimedia Commons"},{"f":"c008.jpg","t":"foto","b":"Head of Franz Kafka - kinetic sculpture 06","y":"Kritzolina","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Head_of_Franz_Kafka_-_kinetic_sculpture_06.jpg","s":"Wikimedia Commons"},{"f":"c009.jpg","t":"foto","b":"Borracho mono (Ophioblennius steindachneri), Cabo San Lucas, Baja California, México, 2024-12-18, DD 80","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Borracho_mono_(Ophioblennius_steindachneri),_Cabo_San_Lucas,_Baja_California,_M%C3%A9xico,_2024-12-18,_DD_80.jpg","s":"Wikimedia Commons"},{"f":"c010.jpg","t":"foto","b":"Brooklyn Historical Society NY2","y":"Acroterion","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Brooklyn_Historical_Society_NY2.jpg","s":"Wikimedia Commons"},{"f":"c011.jpg","t":"foto","b":"Pez payaso tomate (Amphiprion frenatus) en una anémona magnífica (Heteractis magnifica), Anilao, Filipinas, 2023-08-22, DD 208","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Pez_payaso_tomate_(Amphiprion_frenatus)_en_una_an%C3%A9mona_magn%C3%ADfica_(Heteractis_magnifica),_Anilao,_Filipinas,_2023-08-22,_DD_208.jpg","s":"Wikimedia Commons"},{"f":"c012.jpg","t":"foto","b":"Feuersteinferner und Feuersteine II","y":"Jörg Braukmann","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Feuersteinferner_und_Feuersteine_II.jpg","s":"Wikimedia Commons"},{"f":"c013.jpg","t":"foto","b":"076 Baby Angolan giraffes running in Etosha National Park Photo by Giles Laurent","y":"Giles Laurent","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:076_Baby_Angolan_giraffes_running_in_Etosha_National_Park_Photo_by_Giles_Laurent.jpg","s":"Wikimedia Commons"},{"f":"c014.jpg","t":"foto","b":"Купол здания торгового дома «Эсдерс и Схейфальс»","y":"The Cosmonaut","d":"","l":"CC BY-SA 2.5 ca","k":"https://commons.wikimedia.org/wiki/File:%D0%9A%D1%83%D0%BF%D0%BE%D0%BB_%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D1%8F_%D1%82%D0%BE%D1%80%D0%B3%D0%BE%D0%B2%D0%BE%D0%B3%D0%BE_%D0%B4%D0%BE%D0%BC%D0%B0_%C2%AB%D0%AD%D1%81%D0%B4%D0%B5%D1%80%D1%81_%D0%B8_%D0%A1%D1%85%D0%B5%D0%B9%D1%84%D0%B0%D0%BB%D1%8C%D1%81%C2%BB.jpg","s":"Wikimedia Commons"},{"f":"c015.jpg","t":"foto","b":"Arnaldo Pomodoro, Sfera grande, Pesaro - 2025-09-03 16-38-06 001","y":"Terragio67","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Arnaldo_Pomodoro,_Sfera_grande,_Pesaro_-_2025-09-03_16-38-06_001.jpg","s":"Wikimedia Commons"},{"f":"c016.jpg","t":"foto","b":"Isotelus rex (TMP 2009.003.0003), Royal Tyrrell Museum, Drumheller, Alberta, 2025-07-13","y":"Chris Woodrich","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Isotelus_rex_(TMP_2009.003.0003),_Royal_Tyrrell_Museum,_Drumheller,_Alberta,_2025-07-13.jpg","s":"Wikimedia Commons"},{"f":"c017.jpg","t":"foto","b":"The Agnew Clinic","y":"Thomas Eakins","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Eakins,_Thomas_-_The_Agnew_Clinic.jpg","s":"Wikimedia Commons"},{"f":"c018.jpg","t":"foto","b":"Lago di Carezza and Latemar, Carezza, Trentino-Alto Adige, Italy, 2025 October","y":"Ximonic (Simo Räsänen)","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Lago_di_Carezza_and_Latemar,_Carezza,_Trentino-Alto_Adige,_Italy,_2025_October.jpg","s":"Wikimedia Commons"},{"f":"c019.jpg","t":"foto","b":"Jungle Bush-Quail in Mahabaleshwar August 2025 by Tisha Mukherjee 01","y":"Tisha Mukherjee","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Jungle_Bush-Quail_in_Mahabaleshwar_August_2025_by_Tisha_Mukherjee_01.jpg","s":"Wikimedia Commons"},{"f":"c020.jpg","t":"foto","b":"Parque Nacional de Aparados da Serra (01) - Lucio Stabile","y":"LucioStabile","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Parque_Nacional_de_Aparados_da_Serra_(01)_-_Lucio_Stabile.jpg","s":"Wikimedia Commons"},{"f":"c021.jpg","t":"foto","b":"Alexander Graham Bell 1895 NPG 77 363","y":"Unknown author Unknown author","d":"","l":"CC0","k":"https://commons.wikimedia.org/wiki/File:Alexander_Graham_Bell_1895_NPG_77_363.jpg","s":"Wikimedia Commons"},{"f":"c022.jpg","t":"foto","b":"Treppenhaus im Esplanadebau 1","y":"GZagatta","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Treppenhaus_im_Esplanadebau_1.jpg","s":"Wikimedia Commons"},{"f":"c023.jpg","t":"foto","b":"Erfurt - Rathaus 01a","y":"H. Zell","d":"","l":"CC BY-SA 3.0","k":"https://commons.wikimedia.org/wiki/File:Erfurt_-_Rathaus_01a.jpg","s":"Wikimedia Commons"},{"f":"c024.jpg","t":"foto","b":"Rescue on Pit River Bridge (sharpened)","y":"Virginia Schau","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Rescue_on_Pit_River_Bridge_(sharpened).jpg","s":"Wikimedia Commons"},{"f":"c025.jpg","t":"foto","b":"DSC09611a Search and Rescue Dog, Austrian Red Cross Perchtoldsdorf, 2024-10","y":"Aciarium","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:DSC09611a_Search_and_Rescue_Dog,_Austrian_Red_Cross_Perchtoldsdorf,_2024-10.jpg","s":"Wikimedia Commons"},{"f":"c026.jpg","t":"foto","b":"Antílope acuático (Kobus ellipsiprymnus), parque nacional del lago Nakuru, Kenia, 2024-05-18, DD 21","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Ant%C3%ADlope_acu%C3%A1tico_(Kobus_ellipsiprymnus),_parque_nacional_del_lago_Nakuru,_Kenia,_2024-05-18,_DD_21.jpg","s":"Wikimedia Commons"},{"f":"c027.jpg","t":"foto","b":"Presidio of Santa Barbara, Chapel (2025)-L1006772","y":"Frank Schulenburg","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Presidio_of_Santa_Barbara,_Chapel_(2025)-L1006772.jpg","s":"Wikimedia Commons"},{"f":"c028.jpg","t":"foto","b":"Aegithalos caudatus (with feathers to pad the nest), Lodz (Poland)","y":"Original: Jerzy Strzelecki Derivative work: Radomianin","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Aegithalos_caudatus_(with_feathers_to_pad_the_nest),_Lodz_(Poland).jpg","s":"Wikimedia Commons"},{"f":"c029.jpg","t":"foto","b":"Grünblättrige Schwefelköpfe (Hypholoma fasciculare)-20201020-RM-110121","y":"Ermell","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Gr%C3%BCnbl%C3%A4ttrige_Schwefelk%C3%B6pfe_(Hypholoma_fasciculare)-20201020-RM-110121.jpg","s":"Wikimedia Commons"},{"f":"c030.jpg","t":"foto","b":"Emission nebulae in Cepheus and Cassiopeia","y":"Tk833","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Emission_nebulae_in_Cepheus_and_Cassiopeia.jpg","s":"Wikimedia Commons"},{"f":"c031.jpg","t":"foto","b":"Schloss Schwetzingen - Porzellanhäuschen - Fliesen 03","y":"Llez","d":"","l":"CC BY-SA 3.0","k":"https://commons.wikimedia.org/wiki/File:Schloss_Schwetzingen_-_Porzellanh%C3%A4uschen_-_Fliesen_03.jpg","s":"Wikimedia Commons"},{"f":"c032.jpg","t":"foto","b":"Ύδρα 8133","y":"C messier","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:%CE%8E%CE%B4%CF%81%CE%B1_8133.jpg","s":"Wikimedia Commons"},{"f":"c033.jpg","t":"foto","b":"ScotRail 153 and 156 Bridge of Orchy - Rannoch","y":"Kabelleger","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:ScotRail_153_and_156_Bridge_of_Orchy_-_Rannoch.jpg","s":"Wikimedia Commons"},{"f":"c034.jpg","t":"foto","b":"Peucetia viridans, Sierra de Guadalupe, Mexico 20251108p2","y":"Carlos Valenzuela Montuy","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Peucetia_viridans,_Sierra_de_Guadalupe,_Mexico_20251108p2.jpg","s":"Wikimedia Commons"},{"f":"c035.jpg","t":"foto","b":"Grawa-Wasserfall 2025","y":"Jörg Braukmann","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Grawa-Wasserfall_2025.jpg","s":"Wikimedia Commons"},{"f":"c036.jpg","t":"foto","b":"Photographic lenses and tubes 2025","y":"Carlos Valenzuela Montuy","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Photographic_lenses_and_tubes_2025.jpg","s":"Wikimedia Commons"},{"f":"c037.jpg","t":"foto","b":"Barrilete negro (Euthynnus lineatus), San José del Cabo, Baja California, México, 2024-12-21, DD 16","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Barrilete_negro_(Euthynnus_lineatus),_San_Jos%C3%A9_del_Cabo,_Baja_California,_M%C3%A9xico,_2024-12-21,_DD_16.jpg","s":"Wikimedia Commons"},{"f":"c038.jpg","t":"foto","b":"Lac de Cap-de-Long (22)","y":"Tournasol7","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Lac_de_Cap-de-Long_(22).jpg","s":"Wikimedia Commons"},{"f":"c039.jpg","t":"foto","b":"Жабенски манастир 2","y":"Kiril Simeonovski","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:%D0%96%D0%B0%D0%B1%D0%B5%D0%BD%D1%81%D0%BA%D0%B8_%D0%BC%D0%B0%D0%BD%D0%B0%D1%81%D1%82%D0%B8%D1%80_2.jpg","s":"Wikimedia Commons"},{"f":"c040.jpg","t":"foto","b":"The Temple among the Forest beneath the Clouds, Weaverville (2025)-L1007085","y":"Frank Schulenburg","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:The_Temple_among_the_Forest_beneath_the_Clouds,_Weaverville_(2025)-L1007085.jpg","s":"Wikimedia Commons"},{"f":"c041.jpg","t":"foto","b":"Air-to-air photo of a Sukhoi Superjet 100 (97004) over Italy","y":"Katsuhiko Tokunaga/ SuperJet International","d":"","l":"CC BY-SA 2.0","k":"https://commons.wikimedia.org/wiki/File:Air-to-air_photo_of_a_Sukhoi_Superjet_100_(97004)_over_Italy.jpg","s":"Wikimedia Commons"},{"f":"c042.jpg","t":"foto","b":"Charles Roscoe Savage self-portrait","y":"Charles Roscoe Savage / Adam Cuerden","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Charles_Roscoe_Savage_self-portrait.jpg","s":"Wikimedia Commons"},{"f":"c043.jpg","t":"foto","b":"Giles Alexander Smith by the Webster Brothers","y":"Webster Brothers, [ 1 ] restored by Adam Cuerden","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Giles_Alexander_Smith_by_the_Webster_Brothers.jpg","s":"Wikimedia Commons"},{"f":"c044.jpg","t":"foto","b":"Stubaier Alpen","y":"Jörg Braukmann","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Stubaier_Alpen.jpg","s":"Wikimedia Commons"},{"f":"c045.jpg","t":"foto","b":"Reception of Grand Duke Alexander Nikolayevich by Prince Metternich in the Vienna Hofburg in 1829, by Ferdinand Georg Waldmüller","y":"Ferdinand Georg Waldmüller","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Reception_of_Grand_Duke_Alexander_Nikolayevich_by_Prince_Metternich_in_the_Vienna_Hofburg_in_1829,_by_Ferdinand_Georg_Waldm%C3%BCller.jpg","s":"Wikimedia Commons"},{"f":"c046.jpg","t":"foto","b":"Joan Baez and Bob Dylan","y":"Rowland Scherman, National Archives and Records Administration","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Joan_Baez_and_Bob_Dylan.jpg","s":"Wikimedia Commons"},{"f":"c047.jpg","t":"foto","b":"Valley of the shadow of death","y":"Roger Fenton","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Valley_of_the_shadow_of_death.jpg","s":"Wikimedia Commons"},{"f":"c048.jpg","t":"foto","b":"Black Drongo in Purulia June 2025 by Tisha Mukherjee 02","y":"Tisha Mukherjee","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Black_Drongo_in_Purulia_June_2025_by_Tisha_Mukherjee_02.jpg","s":"Wikimedia Commons"},{"f":"c049.jpg","t":"foto","b":"Alpine heath (Coenonympha gardetta) male underside Wengen","y":"Charles J. Sharp","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Alpine_heath_(Coenonympha_gardetta)_male_underside_Wengen.jpg","s":"Wikimedia Commons"},{"f":"c050.jpg","t":"foto","b":"Plain vanilla muffin in Tuntorp","y":"W.carter","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Plain_vanilla_muffin_in_Tuntorp.jpg","s":"Wikimedia Commons"},{"f":"c051.jpg","t":"foto","b":"D-6-78-181-31 Kerlachkapelle Stadtlauringen","y":"Stephan van Helden","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:D-6-78-181-31_Kerlachkapelle_Stadtlauringen.jpg","s":"Wikimedia Commons"},{"f":"c052.jpg","t":"foto","b":"Obir-Tropfsteinhöhle Haifischmaul Sintersee 01","y":"Uoaei1","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Obir-Tropfsteinh%C3%B6hle_Haifischmaul_Sintersee_01.jpg","s":"Wikimedia Commons"},{"f":"c053.jpg","t":"foto","b":"Leopard (Panthera pardus pardus) Kruger 2","y":"Charles J. Sharp","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Leopard_(Panthera_pardus_pardus)_Kruger_2.jpg","s":"Wikimedia Commons"},{"f":"c054.jpg","t":"foto","b":"Joseph Smith\u0027s First Vision in Stained Glass at the LDS Church History Museum","y":"NateBergin","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Joseph_Smith%27s_First_Vision_in_Stained_Glass_at_the_LDS_Church_History_Museum.jpg","s":"Wikimedia Commons"},{"f":"c055.jpg","t":"foto","b":"2025-10-11 D500-920 Achim-Lammerts Kuehneromyces-mutabilis","y":"Achim Lammerts (Syntaxys)","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:2025-10-11_D500-920_Achim-Lammerts_Kuehneromyces-mutabilis.jpg","s":"Wikimedia Commons"},{"f":"c056.jpg","t":"foto","b":"016 Ocelot in Encontro das Águas State Park Photo by Giles Laurent","y":"Giles Laurent","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:016_Ocelot_in_Encontro_das_%C3%81guas_State_Park_Photo_by_Giles_Laurent.jpg","s":"Wikimedia Commons"},{"f":"c057.jpg","t":"foto","b":"Drake Lesser Scaup (Aythya affinis) Barengat Inlet, New Jersey, USA","y":"Chuck Homler d/b/a Focus On Wildlife","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Drake_Lesser_Scaup_(Aythya_affinis)_Barengat_Inlet,_New_Jersey,_USA.jpg","s":"Wikimedia Commons"},{"f":"c058.jpg","t":"foto","b":"Pacific National freight train Virginia, SA","y":"Tomoyn","d":"","l":"CC BY 4.0","k":"https://commons.wikimedia.org/wiki/File:Pacific_National_freight_train_Virginia,_SA.jpg","s":"Wikimedia Commons"},{"f":"c059.jpg","t":"foto","b":"Reflection of the Flamingo Hotel in front of the Bellagio","y":"Julian Lupyan","d":"","l":"CC0","k":"https://commons.wikimedia.org/wiki/File:Reflection_of_the_Flamingo_Hotel_in_front_of_the_Bellagio.jpg","s":"Wikimedia Commons"},{"f":"c060.jpg","t":"foto","b":"Mottled Wood-Owl in Bhigwan August 2025 by Tisha Mukherjee 09","y":"Tisha Mukherjee","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Mottled_Wood-Owl_in_Bhigwan_August_2025_by_Tisha_Mukherjee_09.jpg","s":"Wikimedia Commons"},{"f":"c061.jpg","t":"foto","b":"ОУ „Христијан Тодоровски Карпош“ - Челопек 2","y":"Kiril Simeonovski","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:%D0%9E%D0%A3_%E2%80%9E%D0%A5%D1%80%D0%B8%D1%81%D1%82%D0%B8%D1%98%D0%B0%D0%BD_%D0%A2%D0%BE%D0%B4%D0%BE%D1%80%D0%BE%D0%B2%D1%81%D0%BA%D0%B8_%D0%9A%D0%B0%D1%80%D0%BF%D0%BE%D1%88%E2%80%9C_-_%D0%A7%D0%B5%D0%BB%D0%BE%D0%BF%D0%B5%D0%BA_2.jpg","s":"Wikimedia Commons"},{"f":"c062.jpg","t":"foto","b":"Historic Pagoda Style Architecture in Kathmandu Durbar Square-IMG 4069","y":"Bijay Chaurasia","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Historic_Pagoda_Style_Architecture_in_Kathmandu_Durbar_Square-IMG_4069.jpg","s":"Wikimedia Commons"},{"f":"c063.jpg","t":"foto","b":"Stained Glass Coat of Arms dated 1674, Sforza Castle, Milan","y":"Julian Lupyan","d":"","l":"CC0","k":"https://commons.wikimedia.org/wiki/File:Stained_Glass_Coat_of_Arms_dated_1674,_Sforza_Castle,_Milan.jpg","s":"Wikimedia Commons"},{"f":"c064.jpg","t":"foto","b":"DC3 Skå June 2017 05","y":"Arild Vågen","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:DC3_Sk%C3%A5_June_2017_05.jpg","s":"Wikimedia Commons"},{"f":"c065.jpg","t":"foto","b":"Golden orb-weavers (Nephila pilipes) female and male Double Haven","y":"Charles J. Sharp","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Golden_orb-weavers_(Nephila_pilipes)_female_and_male_Double_Haven.jpg","s":"Wikimedia Commons"},{"f":"c066.jpg","t":"foto","b":"ISS-46 Northern India at night","y":"NASA","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:ISS-46_Northern_India_at_night.jpg","s":"Wikimedia Commons"},{"f":"c067.jpg","t":"foto","b":"Barbakan przed wschodem słońca","y":"Gswito","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Barbakan_przed_wschodem_s%C5%82o%C5%84ca.jpg","s":"Wikimedia Commons"},{"f":"c068.jpg","t":"foto","b":"Pez ángel real (Holacanthus passer), Cabo Pulmo, Baja California, México, 2024-12-19, DD 25","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Pez_%C3%A1ngel_real_(Holacanthus_passer),_Cabo_Pulmo,_Baja_California,_M%C3%A9xico,_2024-12-19,_DD_25.jpg","s":"Wikimedia Commons"},{"f":"c069.jpg","t":"foto","b":"Rabi - east view 01","y":"V.Švarc","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Rabi_-_east_view_01.jpg","s":"Wikimedia Commons"},{"f":"c070.jpg","t":"foto","b":"Montbard - Brenne - 3","y":"Benjamin Smith","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Montbard_-_Brenne_-_3.jpg","s":"Wikimedia Commons"},{"f":"c071.jpg","t":"foto","b":"Chinese: 《明仁宗坐像 軸》 label QS:Lzh,\"明仁宗坐像 軸\"","y":"Unknown author Unknown author","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Portrait_assis_de_l%27empereur_Ming_Renzong.jpg","s":"Wikimedia Commons"},{"f":"c072.jpg","t":"foto","b":"Seated Portrait of the Ming Emperor Xuanzong label QS:Lzh,\"明宣宗坐像（一） 軸\" label QS:Len,\"Seated Portrait of the Ming Emperor Xuanzong\"","y":"Unknown author Unknown author","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Ming_Xuanzong.jpg","s":"Wikimedia Commons"},{"f":"p001.jpg","t":"sanat","b":"Residencia, Wurzburgo, Alemania, 2025-10-03, DD 101-103 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Residencia,_Wurzburgo,_Alemania,_2025-10-03,_DD_101-103_HDR.jpg","s":"Wikimedia Commons"},{"f":"p002.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p003.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p004.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p005.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p006.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p007.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p008.jpg","t":"sanat","b":"Catedral, Siracusa, Sicilia, Italia, 2025-04-07, DD 10-12 HDR","y":"Diego Delso","d":"","l":"CC BY-SA 4.0","k":"https://commons.wikimedia.org/wiki/File:Catedral,_Siracusa,_Sicilia,_Italia,_2025-04-07,_DD_10-12_HDR.jpg","s":"Wikimedia Commons"},{"f":"p009.jpg","t":"sanat","b":"Portrait of the Prophet Muhammad riding the buraq steed title QS:P1476,en:\"Portrait of the Prophet Muhammad riding the buraq steed\" label QS:Len,\"Portrait of the Prophet Muhammad riding the buraq steed\"","y":"Unknown author Unknown author","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Portrait_of_the_Prophet_Muhammad_riding_the_buraq_steed_-_Google_Art_Project.jpg","s":"Wikimedia Commons"},{"f":"p010.jpg","t":"sanat","b":"Portrait of the Prophet Muhammad riding the buraq steed title QS:P1476,en:\"Portrait of the Prophet Muhammad riding the buraq steed\" label QS:Len,\"Portrait of the Prophet Muhammad riding the buraq steed\"","y":"Unknown author Unknown author","d":"","l":"Public domain","k":"https://commons.wikimedia.org/wiki/File:Portrait_of_the_Prophet_Muhammad_riding_the_buraq_steed_-_Google_Art_Project.jpg","s":"Wikimedia Commons"},{"f":"m001.jpg","t":"sanat","b":"Sutra Box (KyÅbako) with Sun and Clouds","y":"","d":"late 14thâearly 15th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/903396","s":"The Metropolitan Museum of Art"},{"f":"m002.jpg","t":"sanat","b":"Helmet","y":"","d":"ca. 1560","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/27936","s":"The Metropolitan Museum of Art"},{"f":"m003.jpg","t":"sanat","b":"Zoe, Maid of Athens","y":"Julia Margaret Cameron","d":"1866","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/282043","s":"The Metropolitan Museum of Art"},{"f":"m004.jpg","t":"sanat","b":"Burgonet with Falling Buffe","y":"","d":"ca. 1550","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/27791","s":"The Metropolitan Museum of Art"},{"f":"m005.jpg","t":"sanat","b":"Pierrot Laughing","y":"Nadar","d":"1855","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/282190","s":"The Metropolitan Museum of Art"},{"f":"m006.jpg","t":"sanat","b":"The Thirty-Six Poetic Immortals","y":"Studio of Kano Takanobu","d":"early 17th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/910555","s":"The Metropolitan Museum of Art"},{"f":"m007.jpg","t":"sanat","b":"Portrait of NicolÃ¡s MatÃ­as FernÃ¡ndez MÃ©ndez","y":"JosÃ© Campeche","d":"ca. 1800","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/921065","s":"The Metropolitan Museum of Art"},{"f":"m008.jpg","t":"sanat","b":"Ice skaters on the Amstel in Amsterdam","y":"Hans Bol","d":"1589","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/910730","s":"The Metropolitan Museum of Art"},{"f":"m009.jpg","t":"sanat","b":"Vase","y":"John Bennett","d":"1882","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/9317","s":"The Metropolitan Museum of Art"},{"f":"m010.jpg","t":"sanat","b":"Cabinet","y":"Daniel Pabst","d":"ca. 1873â76","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/1083","s":"The Metropolitan Museum of Art"},{"f":"m011.jpg","t":"sanat","b":"The Dancing Lesson","y":"Thomas Eakins","d":"1878","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/10821","s":"The Metropolitan Museum of Art"},{"f":"m012.jpg","t":"sanat","b":"Ensemble","y":"","d":"ca. 1730","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/107375","s":"The Metropolitan Museum of Art"},{"f":"m013.jpg","t":"sanat","b":"Chamunda, the Horrific Destroyer of Evil","y":"","d":"10thâ11th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38152","s":"The Metropolitan Museum of Art"},{"f":"m014.jpg","t":"sanat","b":"Head of Buddha","y":"","d":"5thâ6th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38228","s":"The Metropolitan Museum of Art"},{"f":"m015.jpg","t":"sanat","b":"Buddha","y":"","d":"mid-7th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38160","s":"The Metropolitan Museum of Art"},{"f":"m016.jpg","t":"sanat","b":"Shiva as Mrityunjaya, the Conquerer of Death","y":"","d":"12th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38127","s":"The Metropolitan Museum of Art"},{"f":"m017.jpg","t":"sanat","b":"Gold Neck Ring","y":"","d":"6thâ4th century BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/476552","s":"The Metropolitan Museum of Art"},{"f":"m018.jpg","t":"sanat","b":"The Fieschi Morgan Staurotheke","y":"","d":"early 9th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/472562","s":"The Metropolitan Museum of Art"},{"f":"m019.jpg","t":"sanat","b":"Paten","y":"","d":"ca. 1230â50","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/475515","s":"The Metropolitan Museum of Art"},{"f":"m020.jpg","t":"sanat","b":"The Cloisters Playing Cards","y":"","d":"ca. 1475â80","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/475513","s":"The Metropolitan Museum of Art"},{"f":"m021.jpg","t":"sanat","b":"Plaque with Censing Angels","y":"","d":"ca. 1170â80","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/474263","s":"The Metropolitan Museum of Art"},{"f":"m022.jpg","t":"sanat","b":"Royal processions, ceremonies and entertainments","y":"Court of King Mindon or Thibaw, or associated workshops","d":"1870sâ1880s","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/744940","s":"The Metropolitan Museum of Art"},{"f":"m023.jpg","t":"sanat","b":"Sabrina","y":"Samuel Palmer","d":"1856","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/747611","s":"The Metropolitan Museum of Art"},{"f":"m024.jpg","t":"sanat","b":"Head of Tutankhamun","y":"","d":"ca. 1328â1318 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544690","s":"The Metropolitan Museum of Art"},{"f":"m025.jpg","t":"sanat","b":"Statue of two men and a boy that served as a domestic icon","y":"","d":"ca. 1347â1330 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544683","s":"The Metropolitan Museum of Art"},{"f":"m026.jpg","t":"sanat","b":"Funerary Figure of Akhenaten","y":"","d":"ca. 1347â1330 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544686","s":"The Metropolitan Museum of Art"},{"f":"m027.jpg","t":"sanat","b":"Sphinx of Amenhotep III, possibly from a Model of a Temple","y":"","d":"ca. 1386â1347 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544498","s":"The Metropolitan Museum of Art"},{"f":"m028.jpg","t":"sanat","b":"The Bodhisattva Avalokitesvara Expounding the Dharma to a Devotee: Folio from a Ashtasahasrika Prajnaparamita Sutra Manuscript","y":"Mahavihara Master","d":"early 12th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/74906","s":"The Metropolitan Museum of Art"},{"f":"m029.jpg","t":"sanat","b":"Shakyamuni triad","y":"Unidentified artist","d":"1565","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/74813","s":"The Metropolitan Museum of Art"},{"f":"m030.jpg","t":"sanat","b":"At the Circus: The Spanish Walk (Au Cirque: Le Pas espagnol)","y":"Henri de Toulouse-Lautrec","d":"1899","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/459241","s":"The Metropolitan Museum of Art"},{"f":"m031.jpg","t":"sanat","b":"Standing Cup and Cover Supported by an Enchained Turk","y":"","d":"ca. 1705â11","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/459248","s":"The Metropolitan Museum of Art"},{"f":"m032.jpg","t":"sanat","b":"Self-Portrait","y":"Egon Schiele","d":"1911","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/483438","s":"The Metropolitan Museum of Art"},{"f":"m033.jpg","t":"sanat","b":"Seated Buddha","y":"","d":"late 15thâ16th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39112","s":"The Metropolitan Museum of Art"},{"f":"m034.jpg","t":"sanat","b":"Standing Buddha","y":"","d":"7thâ8th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39186","s":"The Metropolitan Museum of Art"},{"f":"m035.jpg","t":"sanat","b":"Crowned Buddha","y":"","d":"10thâ11th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39189","s":"The Metropolitan Museum of Art"},{"f":"m036.jpg","t":"sanat","b":"Seated Transcendent Buddha Vairochana","y":"","d":"ca. late 9th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39020","s":"The Metropolitan Museum of Art"},{"f":"m037.jpg","t":"sanat","b":"Clothing box decorated with dragons","y":"","d":"19th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/40528","s":"The Metropolitan Museum of Art"},{"f":"m038.jpg","t":"sanat","b":"Portrait of the Great Master Seosan","y":"Unidentified artist","d":"late 17thâ18th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39889","s":"The Metropolitan Museum of Art"},{"f":"m039.jpg","t":"sanat","b":"Division Viol","y":"Barak Norman","d":"1692","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/503396","s":"The Metropolitan Museum of Art"},{"f":"m040.jpg","t":"sanat","b":"Violin","y":"Joachim Tielke","d":"ca. 1685","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/503443","s":"The Metropolitan Museum of Art"},{"f":"m041.jpg","t":"sanat","b":"Guitar","y":"Joseph de FrÃ­as","d":"ca. 1780","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/503440","s":"The Metropolitan Museum of Art"},{"f":"m042.jpg","t":"sanat","b":"[Cornelius Conway Felton with His Hat and Coat]","y":"John Adams Whipple","d":"early 1850s","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/282046","s":"The Metropolitan Museum of Art"},{"f":"m043.jpg","t":"sanat","b":"Head from a Statue of King Amenhotep I","y":"","d":"ca. 1525â1504 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544453","s":"The Metropolitan Museum of Art"},{"f":"m044.jpg","t":"sanat","b":"Head of the god Amun","y":"","d":"ca. 1328â1318 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544691","s":"The Metropolitan Museum of Art"},{"f":"m045.jpg","t":"sanat","b":"Stela of the Steward Mentuwoser","y":"","d":"ca. 1944 B.C.","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/544320","s":"The Metropolitan Museum of Art"},{"f":"m046.jpg","t":"sanat","b":"Morte d\u0027Arthur","y":"Sir Thomas Malory","d":"1893","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/591865","s":"The Metropolitan Museum of Art"},{"f":"m047.jpg","t":"sanat","b":"Sutra box with dragons amid clouds","y":"","d":"","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/60870","s":"The Metropolitan Museum of Art"},{"f":"m048.jpg","t":"sanat","b":"Finches and bamboo","y":"Emperor Huizong","d":"early 12th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39936","s":"The Metropolitan Museum of Art"},{"f":"m049.jpg","t":"sanat","b":"Summer Mountains","y":"Qu Ding","d":"ca. 1050","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/39915","s":"The Metropolitan Museum of Art"},{"f":"m050.jpg","t":"sanat","b":"Souvenir of a Castle in Vosges","y":"Victor Hugo","d":"1857","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/400924","s":"The Metropolitan Museum of Art"},{"f":"m051.jpg","t":"sanat","b":"Loffice de NoÃ«l, 1768","y":"Catholic Church","d":"1768","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/681259","s":"The Metropolitan Museum of Art"},{"f":"m052.jpg","t":"sanat","b":"Marble Statue Group of the Three Graces","y":"","d":"2nd century CE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/256403","s":"The Metropolitan Museum of Art"},{"f":"m053.jpg","t":"sanat","b":"Bronze statuette of an artisan with silver eyes","y":"","d":"ca. mid-1st century BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/255344","s":"The Metropolitan Museum of Art"},{"f":"m054.jpg","t":"sanat","b":"Gold phiale (libation bowl)","y":"","d":"4thâ3rd century BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/255122","s":"The Metropolitan Museum of Art"},{"f":"m055.jpg","t":"sanat","b":"Marble female figure","y":"Bastis Master","d":"2600â2400 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/255275","s":"The Metropolitan Museum of Art"},{"f":"m056.jpg","t":"sanat","b":"The Gentleman and Cabinet-maker\u0027s Director:  Being a Large Collection of . . . Designs of Household Furniture in the Gothic, Chinese and Modern Taste . . .","y":"Thomas Chippendale","d":"1754","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/591840","s":"The Metropolitan Museum of Art"},{"f":"m057.jpg","t":"sanat","b":"Academie de l\u0027espee; ou se domonstrent par reigles mathÃ©matiques sur le fondement d\u0027un cercle mystÃ©rieux, la thÃ©orie et pratique des vrais . . .","y":"Girard Thibault","d":"1628","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/591832","s":"The Metropolitan Museum of Art"},{"f":"m058.jpg","t":"sanat","b":"An Address to the Workmen in the Pottery on the Subject of Entering into the Service of Foreign Manufacturers","y":"Josiah Wedgwood","d":"1783","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/591841","s":"The Metropolitan Museum of Art"},{"f":"m059.jpg","t":"sanat","b":"Doct. Johan Arndts, dess gottseligen und hocherleuchteten Lehrers Paradijss GÃ¤rtlein : welches voller christlichen Tugend-Gebete erfÃ¼llet","y":"Johan Arndts","d":"1696","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/591838","s":"The Metropolitan Museum of Art"},{"f":"m060.jpg","t":"sanat","b":"Virgin","y":"","d":"ca. 1250","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/473047","s":"The Metropolitan Museum of Art"},{"f":"m061.jpg","t":"sanat","b":"The Virgin Mary and Five Standing Saints above Predella Panels","y":"","d":"1440â46","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/473007","s":"The Metropolitan Museum of Art"},{"f":"m062.jpg","t":"sanat","b":"Game Table","y":"Thomas Day","d":"ca. 1850","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/857028","s":"The Metropolitan Museum of Art"},{"f":"m063.jpg","t":"sanat","b":"Adoration of the Magi from Seven Scenes from the Life of Christ","y":"","d":"ca. 1390","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/472155","s":"The Metropolitan Museum of Art"},{"f":"m064.jpg","t":"sanat","b":"Saint James the Greater","y":"Gil de Siloe","d":"1489â93","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/471884","s":"The Metropolitan Museum of Art"},{"f":"m065.jpg","t":"sanat","b":"The Crucifixion","y":"Master of the Codex of Saint George","d":"ca. 1330â35","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/471904","s":"The Metropolitan Museum of Art"},{"f":"m066.jpg","t":"sanat","b":"Cape Horn near Celilo","y":"Carleton E. Watkins","d":"1867","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/283222","s":"The Metropolitan Museum of Art"},{"f":"m067.jpg","t":"sanat","b":"[Woman Seen from the Back]","y":"OnÃ©sipe Aguado de las Marismas","d":"ca. 1862","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/283121","s":"The Metropolitan Museum of Art"},{"f":"m068.jpg","t":"sanat","b":"Shoulder bag (missing strap)","y":"","d":"ca. 1800","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/751507","s":"The Metropolitan Museum of Art"},{"f":"m069.jpg","t":"sanat","b":"Library Table","y":"Herter Brothers","d":"1879â82","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/4785","s":"The Metropolitan Museum of Art"},{"f":"m070.jpg","t":"sanat","b":"Courtiers in a Rose Garden: A Lady and Two Gentlemen","y":"","d":"ca. 1440â50","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/463188","s":"The Metropolitan Museum of Art"},{"f":"m071.jpg","t":"sanat","b":"Secretary","y":"Martin Carlin","d":"ca. 1781â85","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/459251","s":"The Metropolitan Museum of Art"},{"f":"m072.jpg","t":"sanat","b":"Bodhisattva Avalokiteshvara","y":"","d":"8thâearly 9th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38952","s":"The Metropolitan Museum of Art"},{"f":"m073.jpg","t":"sanat","b":"Standing Buddha","y":"","d":"8thâ9th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38954","s":"The Metropolitan Museum of Art"},{"f":"m074.jpg","t":"sanat","b":"Jain Svetambara Tirthankara in Meditation","y":"","d":"first half of the 11th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38574","s":"The Metropolitan Museum of Art"},{"f":"m075.jpg","t":"sanat","b":"Standing Bodisattva Maitreya (Buddha of the Future)","y":"","d":"ca. 3rd century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/38788","s":"The Metropolitan Museum of Art"},{"f":"m076.jpg","t":"sanat","b":"A Bouquet of Flowers","y":"Clara Peeters","d":"ca. 1612","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/827660","s":"The Metropolitan Museum of Art"},{"f":"m077.jpg","t":"sanat","b":"Cape","y":"","d":"second half 16th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/79091","s":"The Metropolitan Museum of Art"},{"f":"m078.jpg","t":"sanat","b":"Mahakala, Protector of the Tent","y":"","d":"ca. 1500","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/78195","s":"The Metropolitan Museum of Art"},{"f":"m079.jpg","t":"sanat","b":"American Barque \"Jane Tudor,\" Conway Bay","y":"David Johnson","d":"ca. 1855","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/267019","s":"The Metropolitan Museum of Art"},{"f":"m080.jpg","t":"sanat","b":"Spindle-back armchair","y":"","d":"1640â80","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/200","s":"The Metropolitan Museum of Art"},{"f":"m081.jpg","t":"sanat","b":"Paris","y":"Antico (Pier Jacopo Alari Bonacolsi)","d":"ca. 1518â1524","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/201862","s":"The Metropolitan Museum of Art"},{"f":"m082.jpg","t":"sanat","b":"Model for a Proposed Monument to Commemorate the Invention of the Balloon","y":"Clodion (Claude Michel)","d":"ca. 1784","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/199410","s":"The Metropolitan Museum of Art"},{"f":"m083.jpg","t":"sanat","b":"Coffeepot","y":"FranÃ§ois Thomas Germain","d":"1757","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/197462","s":"The Metropolitan Museum of Art"},{"f":"m084.jpg","t":"sanat","b":"[Oak Tree and Rocks, Forest of Fontainebleau]","y":"Gustave Le Gray","d":"1849â52","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/283626","s":"The Metropolitan Museum of Art"},{"f":"m085.jpg","t":"sanat","b":"Chalchiuhtlicue","y":"Mexica artist(s)","d":"1325â1521 CE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/307651","s":"The Metropolitan Museum of Art"},{"f":"m086.jpg","t":"sanat","b":"[The Salon of Sergei Luvovich Levitsky]","y":"Sergei Luvovich Levitsky","d":"1850â57","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/291739","s":"The Metropolitan Museum of Art"},{"f":"m087.jpg","t":"sanat","b":"\"A King Offers to Make Amends to a Bereaved Mother\", Folio from a Khamsa (Quintet) of Amir Khusrau Dihlavi","y":"Amir Khusrau Dihlavi","d":"1597â98","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/446560","s":"The Metropolitan Museum of Art"},{"f":"m088.jpg","t":"sanat","b":"\"Bahram Gur Sees a Herd of Deer Mesmerized by Dilaram\u0027 s Music\", Folio from a Khamsa (Quintet) of Amir Khusrau Dihlavi","y":"Amir Khusrau Dihlavi","d":"1597â98","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/446562","s":"The Metropolitan Museum of Art"},{"f":"m089.jpg","t":"sanat","b":"\"The Story of the Princess of the Blue Pavillion: The Youth of Rum Is Entertained in a Garden by a Fairy and her Maidens\", Folio from a Khamsa (Quintet) of Amir Khusrau Dihlavi","y":"Amir Khusrau Dihlavi","d":"1597â98","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/446567","s":"The Metropolitan Museum of Art"},{"f":"m090.jpg","t":"sanat","b":"Kitab suwar al-kawakib al-thabita (Book of the Images of the Fixed Stars) of al-Sufi","y":"`Abd al-Rahman al-Sufi","d":"late 15th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/446297","s":"The Metropolitan Museum of Art"},{"f":"m091.jpg","t":"sanat","b":"Five Medallion Carpet","y":"","d":"ca. 1500","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/452100","s":"The Metropolitan Museum of Art"},{"f":"m092.jpg","t":"sanat","b":"Bowl Emulating Chinese Stoneware","y":"","d":"9th century","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/451715","s":"The Metropolitan Museum of Art"},{"f":"m093.jpg","t":"sanat","b":"Dedicatory Inscription from a Mosque","y":"","d":"dated 905 AH/1500 CE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/453053","s":"The Metropolitan Museum of Art"},{"f":"m094.jpg","t":"sanat","b":"Bowl with Eagle","y":"Muslim Ibn al-Dahhan","d":"ca. 1000","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/451717","s":"The Metropolitan Museum of Art"},{"f":"m095.jpg","t":"sanat","b":"Viola d\u0027Amore","y":"Giovanni Grancino","d":"1701","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/505786","s":"The Metropolitan Museum of Art"},{"f":"m096.jpg","t":"sanat","b":"Mirror decorated with figures in a landscape","y":"","d":"","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/50444","s":"The Metropolitan Museum of Art"},{"f":"m097.jpg","t":"sanat","b":"Walking-Stick Flute/Oboe","y":"Georg Henrich Scherer","d":"ca. 1750â57","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/504497","s":"The Metropolitan Museum of Art"},{"f":"m098.jpg","t":"sanat","b":"Clarinet in D","y":"","d":"1750â70","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/506724","s":"The Metropolitan Museum of Art"},{"f":"m099.jpg","t":"sanat","b":"Mummy Mask of a Woman","y":"","d":"60â70 CE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/547257","s":"The Metropolitan Museum of Art"},{"f":"m100.jpg","t":"sanat","b":"A Tusk Figurine of a Man","y":"","d":"ca. 3900â3500 BCE","l":"CC0 (Public Domain)","k":"https://www.metmuseum.org/art/collection/search/547232","s":"The Metropolitan Museum of Art"}]/*HAVUZ_SON*/;
+
+const KELIMELER = [...new Set(`şemsiye,arı kovanı,deniz kabuğu,pusula,mum,örümcek ağı,fermuar,kum saati,balon,çapa,kibrit,ayna,tüy,düğme,makas,zar,uçurtma,fener,ip,düğüm,kozalak,mantar,karınca,salyangoz,ahtapot,kaplumbağa,kirpi,deve,zürafa,penguen,kelebek,ateşböceği,yusufçuk,istiridye,mercan,denizanası,yosun,kaktüs,ayçiçeği,nilüfer,sarmaşık,kök,tohum,polen,buzdağı,volkan,şelale,kum tepesi,mağara,gökkuşağı,şimşek,sis,dolu,kar tanesi,damla,dalga,girdap,gelgit,takımyıldız,meteor,uydu,teleskop,mikroskop,büyüteç,mıknatıs,pil,ampul,anten,radyo,gramofon,daktilo,hesap makinesi,dişli çark,makara,kaldıraç,yay,menteşe,vida,çivi,cıvata,anahtar,asma kilit,zincir,kanca,olta,balık ağı,sepet,sandık,valiz,cüzdan,kemer,eldiven,çorap,şapka,yelpaze,maske,peruk,gözlük,kolye,yüzük,bilezik,tarak,fırça,diş fırçası,sabun köpüğü,sünger,havlu,battaniye,yastık,hamak,salıncak,beşik,oyuncak ayı,yoyo,topaç,misket,satranç tahtası,iskambil destesi,yapboz,rubik küpü,kaleydoskop,origami,kâğıt uçak,zarf,posta pulu,harita,yerküre,kartpostal,gazete,kitap ayracı,defter,kurşun kalem,silgi,cetvel,pergel,mürekkep,mühür,zımba,ataç,raptiye,mandal,çamaşır ipi,ütü,dikiş makinesi,iğne,yüksük,yün yumağı,örgü şişi,dokuma tezgâhı,çömlek,testi,fincan,çaydanlık,cezve,kevgir,rende,oklava,havan,tuzluk,kavanoz,şişe,mantar tıpa,pipet,kaşık,çatal,yemek çubuğu,tepsi,semaver,nar,karpuz,ananas,soğan,sarımsak,mısır koçanı,ceviz,yumurta,bal peteği,ekmek,simit,dondurma,pamuk şeker,sakız,lokum,pamuk,zeytin,üzüm salkımı,limon,enginar,lahana,patlıcan,çilek,kiraz,böğürtlen,incir,hurma,bisiklet,tekerlek,kızak,kayak,sörf tahtası,yelkenli,kano,sal,denizaltı,zeplin,sıcak hava balonu,paraşüt,roket,tren rayı,tramvay,teleferik,yürüyen merdiven,trafik lambası,el arabası,tırmık,kürek,sulama kabı,saksı,tırpan,bostan korkuluğu,değirmen taşı,kuyu,kova,hortum,musluk,duş başlığı,küvet,termometre,barometre,rüzgâr gülü,rüzgâr çanı,çan,davul,zil,keman,akordeon,mızıka,flüt,ksilofon,metronom,kulaklık,mikrofon,hoparlör,plak,kaset,fotoğraf makinesi,film şeridi,dürbün,periskop,prizma,mercek,kristal,elmas,kömür,tuz,çakıl taşı,kum,kil,balmumu,reçine,kehribar,fosil,iskelet,parmak izi,ayak izi,gölge,örümcek,arı,sinek,solucan,tırtıl,koza,kuş yuvası,gaga,yumurta kabuğu,boynuz,yüzgeç,kanat,pençe,at nalı,eyer,kuş kafesi,akvaryum,kapı tokmağı,paspas,süpürge,karton kutu,köpük,balonlu naylon,yapışkan bant,zamk,termos,matara,çadır,uyku tulumu,kamp ateşi,odun,balta,testere,çekiç,pense,tornavida,matkap,terazi,şerit metre,su terazisi,çekül,guguklu saat,çalar saat,takvim,boks eldiveni,kalkan,kılıç,ok ve yay,miğfer,taç,bayrak,deniz feneri,düdük,ayakkabı bağı,şişedeki gemi,kum torbası,mozaik,vitray,kalıp,ağaç kabuğu,yaprak damarı,örümcek kozası,arı peteği,su kabarcığı,buz kalıbı,kartopu,kardan adam,lav,tuz gölü,çöl,vaha,ada,yarımada,delta,buzul,mercan resifi,orman yangını,kasırga,hortum bulutu,dolunay,hilal,güneş tutulması,kuzey ışıkları,fırın,mangal,soba,baca dumanı,şömine,el feneri,kibrit kutusu,çakmak,mum alevi,havai fişek,konfeti,serpantin,karnaval maskesi,kukla,kukla ipi,gölge oyunu,sirk çadırı,ip cambazı,trambolin,atlıkarınca,dönme dolap,lunapark treni,labirent,hazine sandığı,pusula iğnesi,şifre kilidi,kasa,kumbara,madeni para,banknot,kredi kartı,barkod,QR kodu,pazl parçası,domino taşı,bowling labutu,golf topu,tenis raketi,file,kale direği,olimpiyat halkası,madalya,kupa,podyum,kronometre,maraton,bayrak yarışı,su şişesi,spor ayakkabısı,paten,kaykay,scooter,motosiklet kaskı,emniyet kemeri,hava yastığı,park metre,yol çizgisi,trafik konisi,bariyer,zebra geçidi,otobüs bileti,turnike,bavul bandı,pasaport,vize damgası,uçak kanadı,kara kutu,radar,sonar,deniz yıldızı,yengeç,ıstakoz,midye,denizatı,yunus,balina,köpekbalığı,vatoz,uçan balık,levrek,balık sürüsü,kuş sürüsü,göçmen kuş,leylek yuvası,baykuş,yarasa,sincap,kunduz barajı,köstebek,tilki,kurt,ayı,panda,koala,kanguru,fil hortumu,gergedan,su aygırı,timsah,bukalemun,kertenkele,yılan derisi,kurbağa,iribaş,ağustos böceği,cırcır böceği,uğur böceği,eşek arısı,sivrisinek,salyangoz kabuğu,inci,kum doları`.split(',').map(s => s.trim()).filter(Boolean))];
+
+const $ = id => document.getElementById(id);
+const state = {
+  kind: 'karisik', live: true, liveFails: 0, liveRetryAt: 0,
+  history: [], pos: -1, count: 0,
+  sure: 180, kalan: 0, timer: null, paused: false,
+  usedPool: new Set(), usedWords: new Set(), busy: false
+};
+const KIND_LABEL = { foto: 'Fotoğraf', sanat: 'Sanat eseri', kelime: 'Kelime' };
+
+/* Tarayıcı belleği: yalnızca odak metni ve tercihler (izleyiciye özel) */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('rg_' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('rg_' + k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- Kaynaklar ---------- */
+async function getJSON(url, ms = 7000) {
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+function strip(html) {
+  if (!html) return '';
+  const d = new DOMParser().parseFromString(html, 'text/html');
+  return (d.body.textContent || '').replace(/\s+/g, ' ').trim();
+}
+function loadImg(src, ms = 15000) {
+  return new Promise((res, rej) => {
+    const im = new Image(); const t = setTimeout(() => { im.src = ''; rej(new Error('zaman aşımı')); }, ms);
+    im.onload = () => { clearTimeout(t); res(src); };
+    im.onerror = () => { clearTimeout(t); rej(new Error('görsel yüklenemedi')); };
+    im.referrerPolicy = 'no-referrer'; im.src = src;
+  });
+}
+const EPOCH = Date.UTC(2008, 0, 1);
+async function commons(cat, tur) {
+  // Wikimedia istek sınırına takılmamak için girdi başına tek dosya, en fazla 3 deneme
+  for (let i = 0; i < 3; i++) {
+    const start = new Date(EPOCH + Math.random() * (Date.now() - EPOCH)).toISOString().slice(0, 19) + 'Z';
+    const u = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=categorymembers'
+      + '&gcmtitle=' + encodeURIComponent(cat) + '&gcmtype=file&gcmsort=timestamp&gcmdir=newer&gcmstart=' + start + '&gcmlimit=1'
+      + '&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=1280&iiextmetadatafilter=Artist|LicenseShortName|ObjectName';
+    const j = await getJSON(u);
+    const pages = Object.values((j.query && j.query.pages) || {}).filter(p => {
+      const ii = p.imageinfo && p.imageinfo[0];
+      if (!ii || ii.mime !== 'image/jpeg' || ii.width < 1200) return false;
+      const ar = ii.width / ii.height; return ar > 0.55 && ar < 2.1;
+    });
+    if (pages.length) {
+      const p = pages[Math.floor(Math.random() * pages.length)], ii = p.imageinfo[0], m = ii.extmetadata || {};
+      return { tur, src: ii.thumburl,
+        b: strip(m.ObjectName && m.ObjectName.value) || p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, '').replace(/_/g, ' '),
+        y: strip(m.Artist && m.Artist.value), d: '', l: (m.LicenseShortName && m.LicenseShortName.value) || '',
+        k: ii.descriptionurl, s: 'Wikimedia Commons', canli: true };
+    }
+  }
+  throw new Error('Commons boş döndü');
+}
+async function met() {
+  for (let i = 0; i < 5; i++) {
+    const s = await getJSON('https://collectionapi.metmuseum.org/public/collection/v1.1/search?q=*&hasImages=true&isHighlight=true&limit=20&offset=' + Math.floor(Math.random() * 2290));
+    const ids = (s.objectIDs || []).sort(() => Math.random() - 0.5).slice(0, 4);
+    for (const id of ids) {
+      const o = await getJSON('https://collectionapi.metmuseum.org/public/collection/v1/objects/' + id);
+      if (o.isPublicDomain && o.primaryImageSmall)
+        return { tur: 'sanat', src: o.primaryImageSmall, b: o.title, y: o.artistDisplayName, d: o.objectDate, l: 'CC0 (Public Domain)', k: o.objectURL, s: 'The Metropolitan Museum of Art', canli: true };
+    }
+  }
+  throw new Error('Met uygun eser bulamadı');
+}
+async function canli(tur) {
+  if (tur === 'foto') return commons('Category:Featured pictures on Wikimedia Commons', 'foto');
+  return Math.random() < 0.6 ? met() : commons('Category:Featured pictures of paintings', 'sanat');
+}
+function havuzdan(tur) {
+  const list = HAVUZ.map((x, i) => [x, i]).filter(([x]) => x.t === tur);
+  if (!list.length) return null;
+  let free = list.filter(([, i]) => !state.usedPool.has(i));
+  if (!free.length) { list.forEach(([, i]) => state.usedPool.delete(i)); free = list; }
+  const [x, i] = free[Math.floor(Math.random() * free.length)];
+  state.usedPool.add(i);
+  return { tur, src: 'havuz/' + x.f, b: x.b, y: x.y, d: x.d, l: x.l, k: x.k, s: x.s, canli: false };
+}
+function kelime() {
+  let free = KELIMELER.filter(w => !state.usedWords.has(w));
+  if (!free.length) { state.usedWords.clear(); free = KELIMELER; }
+  const w = free[Math.floor(Math.random() * free.length)];
+  state.usedWords.add(w);
+  return { tur: 'kelime', w };
+}
+
+/* Bir tür için hazır (görseli önceden yüklenmiş) girdi üret */
+async function hazirla(tur) {
+  if (tur === 'kelime') return kelime();
+  if (!state.live && Date.now() > state.liveRetryAt) state.live = true; // canlı modu yeniden dene
+  if (state.live) {
+    try {
+      const it = await canli(tur); await loadImg(it.src);
+      state.liveFails = 0; setSource(true); return it;
+    } catch (e) {
+      state.liveFails++;
+      // Engellendi (güvenlik kuralı, internet yok, istek sınırı): 90 sn arşivle devam et
+      if (state.liveFails >= 2 || e instanceof TypeError) { state.live = false; state.liveFails = 0; state.liveRetryAt = Date.now() + 90000; }
+    }
+  }
+  const it = havuzdan(tur);
+  if (!it) return kelime();
+  try { await loadImg(it.src); setSource(false); return it; } catch { return kelime(); }
+}
+
+/* Her görsel tür için bir girdiyi arka planda hazır tut */
+const kuyruk = {};
+function doldur(tur) { if (tur !== 'kelime' && !kuyruk[tur]) kuyruk[tur] = hazirla(tur).catch(() => kelime()); }
+async function al(tur) {
+  if (tur === 'kelime') return kelime();
+  doldur(tur); const p = kuyruk[tur]; kuyruk[tur] = null;
+  const it = await p; doldur(tur); return it;
+}
+function secTur() {
+  if (state.kind !== 'karisik') return state.kind;
+  const r = Math.random(); return r < 0.4 ? 'foto' : r < 0.7 ? 'sanat' : 'kelime';
+}
+
+/* ---------- Gösterim ---------- */
+function setSource(live) {
+  const s = $('src'); s.classList.toggle('live', live);
+  $('srcText').textContent = live ? 'Canlı · web' : (HAVUZ.length ? 'Arşiv · ' + HAVUZ.length + ' görsel' : 'Çevrimdışı · kelimeler');
+}
+function goster(it, no) {
+  const img = $('img'), word = $('word');
+  if (it.tur === 'kelime') {
+    img.hidden = true; img.removeAttribute('src'); word.hidden = false; word.textContent = it.w.charAt(0).toLocaleUpperCase('tr') + it.w.slice(1);
+    $('ttl').textContent = 'Türkçe somut isim'; $('meta').textContent = '';
+  } else {
+    word.hidden = true; img.hidden = false; img.src = it.src; img.alt = it.b || KIND_LABEL[it.tur];
+    $('ttl').textContent = it.b || 'Adsız';
+    const meta = $('meta'); meta.textContent = '';
+    const bits = [it.y, it.d, it.l].filter(Boolean).join(' · ');
+    if (bits) meta.append(bits + ' · ');
+    const a = document.createElement('a'); a.href = it.k; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.s + ' ↗';
+    meta.append(a);
+  }
+  $('no').textContent = 'Nº ' + String(no).padStart(2, '0');
+  $('kind').textContent = KIND_LABEL[it.tur];
+  $('prev').disabled = state.pos <= 0; $('next').disabled = state.pos >= state.history.length - 1;
+}
+async function yeni() {
+  if (state.busy) return;
+  state.busy = true; $('stage').classList.add('busy'); $('loading').hidden = false;
+  try {
+    const it = await al(secTur());
+    state.count++; it.no = state.count;
+    state.history.push(it); if (state.history.length > 60) state.history.shift();
+    state.pos = state.history.length - 1;
+    goster(it, it.no); sayacBaslat();
+  } finally {
+    state.busy = false; $('stage').classList.remove('busy'); $('loading').hidden = true;
+  }
+}
+function gezin(d) {
+  const p = state.pos + d; if (p < 0 || p >= state.history.length) return;
+  state.pos = p; const it = state.history[p]; goster(it, it.no);
+}
+
+/* ---------- Sayaç ---------- */
+let audio = null;
+function bip() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.35, 0.7].forEach(t => { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(0.0001, audio.currentTime + t); g.gain.exponentialRampToValueAtTime(0.25, audio.currentTime + t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + t + 0.25); o.connect(g).connect(audio.destination); o.start(audio.currentTime + t); o.stop(audio.currentTime + t + 0.3); });
+  } catch {}
+}
+function fmt(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function cizSayac() {
+  const c = $('clock'), tb = $('tb'), st = $('stage');
+  if (!state.sure) { c.textContent = 'süre yok'; c.classList.add('off'); tb.style.width = '0'; st.classList.remove('done'); $('ended').hidden = true; return; }
+  c.classList.remove('off');
+  c.textContent = (state.paused ? '❚❚ ' : '') + fmt(state.kalan);
+  tb.style.width = (100 * (1 - state.kalan / state.sure)) + '%';
+  const done = state.timer !== null && state.kalan === 0; st.classList.toggle('done', done); $('ended').hidden = !done;
+}
+function sayacBaslat() {
+  clearInterval(state.timer); state.timer = null; state.paused = false;
+  state.kalan = state.sure; cizSayac();
+  if (!state.sure) return;
+  state.timer = setInterval(() => {
+    if (state.paused) return;
+    state.kalan = Math.max(0, state.kalan - 1); cizSayac();
+    if (state.kalan === 0) { clearInterval(state.timer); bip(); }
+  }, 1000);
+}
+function sayacDegistir() {
+  if (!state.sure) return;
+  if (state.timer === null || state.kalan === 0) { sayacBaslat(); return; }
+  state.paused = !state.paused; cizSayac();
+}
+
+/* ---------- Olaylar ---------- */
+$('yeni').addEventListener('click', yeni);
+$('prev').addEventListener('click', () => gezin(-1));
+$('next').addEventListener('click', () => gezin(1));
+$('clock').addEventListener('click', sayacDegistir);
+$('kinds').addEventListener('click', e => {
+  const b = e.target.closest('button[data-k]'); if (!b) return;
+  state.kind = b.dataset.k; store.set('kind', state.kind);
+  document.querySelectorAll('#kinds button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (state.kind === 'foto' || state.kind === 'karisik') doldur('foto');
+  if (state.kind === 'sanat' || state.kind === 'karisik') doldur('sanat');
+});
+$('sure').addEventListener('change', e => { state.sure = +e.target.value; store.set('sure', state.sure); sayacBaslat(); });
+$('odak').addEventListener('input', e => store.set('odak', e.target.value));
+$('fs').addEventListener('click', tamEkran);
+function tamEkran() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else { const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }
+  } catch {}
+}
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, select, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.closest('button')) return; // odaktaki düğme kendi işini yapsın
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); yeni(); }
+  else if (e.key === 'ArrowLeft') gezin(-1);
+  else if (e.key === 'ArrowRight') gezin(1);
+  else if (e.key === 't' || e.key === 'T') sayacDegistir();
+  else if (e.key === 'f' || e.key === 'F') tamEkran();
+});
+document.addEventListener('pointerdown', () => { try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch {} }, { once: true });
+
+/* ---------- Başlangıç ---------- */
+(function baslat() {
+  const k = store.get('kind', 'karisik');
+  const b = document.querySelector('#kinds button[data-k="' + k + '"]'); if (b) b.click();
+  state.sure = +store.get('sure', 180); $('sure').value = String(state.sure);
+  $('odak').value = store.get('odak', '');
+  setSource(false);
+  // İlk girdi anında görünsün: arşivden bir görsel (varsa), yoksa kelime
+  const ilk = havuzdan(Math.random() < 0.5 ? 'foto' : 'sanat') || kelime();
+  state.count = 1; ilk.no = 1; state.history.push(ilk); state.pos = 0;
+  state.kalan = state.sure; goster(ilk, 1); cizSayac();
+  doldur('foto'); doldur('sanat');
+})();
+</script>
+
+</body>
+</html>
