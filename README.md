@@ -2,7 +2,7 @@
 
 Edward de Bono'nun yanal düşünme (lateral thinking) yöntemindeki **rastgele girdi** tekniği için bir sınıf aracı. "Tasarımda Düşünme Araçları ve Yaratıcılık" dersi için hazırlandı.
 
-**Kullanım:** https://razzef.github.io/rastgele-girdi/
+**Kullanım:** https://tasarimdadusunmearaclari.github.io/rastgele-girdi/
 
 - **Yeni girdi** (veya boşluk tuşu): rastgele bir fotoğraf, sanat eseri ya da kelime getirir.
 - **Odak** satırına üzerinde çalışılan problemi yazın. Girdiyi değiştirmeyin ve seçmeyin; onunla odak arasında bağlantı kurun.
