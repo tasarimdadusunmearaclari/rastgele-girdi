@@ -158,7 +158,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible
   </main>
 
   <div class="credit" id="credit">
-    <span class="no" id="no">Nº 01</span>
+    <span class="no" id="no">Nº 4827</span>
     <span class="kind" id="kind">Kelime</span>
     <span class="ttl" id="ttl">Türkçe somut isim</span>
     <span id="meta"></span>
@@ -219,21 +219,35 @@ function loadImg(src, ms = 15000) {
   });
 }
 const EPOCH = Date.UTC(2008, 0, 1);
+/* Commons: rastgele bir noktadan 50 dosya adı al, içinden rastgele seç.
+   (Yalnızca rastgele tarih kullanmak, uzun bir boşluktan sonra eklenen görseli çok sık seçtiriyordu.)
+   Bir listeden en fazla 6 girdi çekilir; oturumda gösterilen dosya tekrar gelmez. */
+const COMMONS_API = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*';
+const commonsListe = {};
+const gorulen = new Set();
+function karistir(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function commonsAdlar(cat) {
+  const start = new Date(EPOCH + Math.random() * (Date.now() - EPOCH - 864e5 * 120)).toISOString().slice(0, 19) + 'Z';
+  const j = await getJSON(COMMONS_API + '&list=categorymembers&cmtitle=' + encodeURIComponent(cat)
+    + '&cmtype=file&cmsort=timestamp&cmdir=newer&cmstart=' + start + '&cmlimit=50&cmprop=title');
+  return karistir(((j.query && j.query.categorymembers) || []).map(x => x.title).filter(t => /\.jpe?g$/i.test(t) && !gorulen.has(t)));
+}
 async function commons(cat, tur) {
-  // Wikimedia istek sınırına takılmamak için girdi başına tek dosya, en fazla 3 deneme
-  for (let i = 0; i < 3; i++) {
-    const start = new Date(EPOCH + Math.random() * (Date.now() - EPOCH)).toISOString().slice(0, 19) + 'Z';
-    const u = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=categorymembers'
-      + '&gcmtitle=' + encodeURIComponent(cat) + '&gcmtype=file&gcmsort=timestamp&gcmdir=newer&gcmstart=' + start + '&gcmlimit=1'
-      + '&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=1280&iiextmetadatafilter=Artist|LicenseShortName|ObjectName';
-    const j = await getJSON(u);
+  for (let i = 0; i < 4; i++) {
+    let L = commonsListe[cat];
+    if (!L || !L.adlar.length || L.kullanilan >= 6) L = commonsListe[cat] = { adlar: await commonsAdlar(cat), kullanilan: 0 };
+    const title = L.adlar.pop(); L.kullanilan++;
+    if (!title) continue;
+    gorulen.add(title);
+    const j = await getJSON(COMMONS_API + '&titles=' + encodeURIComponent(title)
+      + '&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=1280&iiextmetadatafilter=Artist|LicenseShortName|ObjectName');
     const pages = Object.values((j.query && j.query.pages) || {}).filter(p => {
       const ii = p.imageinfo && p.imageinfo[0];
       if (!ii || ii.mime !== 'image/jpeg' || ii.width < 1200) return false;
       const ar = ii.width / ii.height; return ar > 0.55 && ar < 2.1;
     });
     if (pages.length) {
-      const p = pages[Math.floor(Math.random() * pages.length)], ii = p.imageinfo[0], m = ii.extmetadata || {};
+      const p = pages[0], ii = p.imageinfo[0], m = ii.extmetadata || {};
       return { tur, src: ii.thumburl,
         b: strip(m.ObjectName && m.ObjectName.value) || p.title.replace(/^File:/, '').replace(/\.[a-z]+$/i, '').replace(/_/g, ' '),
         y: strip(m.Artist && m.Artist.value), d: '', l: (m.LicenseShortName && m.LicenseShortName.value) || '',
@@ -247,6 +261,8 @@ async function met() {
     const s = await getJSON('https://collectionapi.metmuseum.org/public/collection/v1.1/search?q=*&hasImages=true&isHighlight=true&limit=20&offset=' + Math.floor(Math.random() * 2290));
     const ids = (s.objectIDs || []).sort(() => Math.random() - 0.5).slice(0, 4);
     for (const id of ids) {
+      if (gorulen.has('met' + id)) continue;
+      gorulen.add('met' + id);
       const o = await getJSON('https://collectionapi.metmuseum.org/public/collection/v1/objects/' + id);
       if (o.isPublicDomain && o.primaryImageSmall)
         return { tur: 'sanat', src: o.primaryImageSmall, b: o.title, y: o.artistDisplayName, d: o.objectDate, l: 'CC0 (Public Domain)', k: o.objectURL, s: 'The Metropolitan Museum of Art', canli: true };
@@ -326,7 +342,7 @@ function goster(it, no) {
     const a = document.createElement('a'); a.href = it.k; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.s + ' ↗';
     meta.append(a);
   }
-  $('no').textContent = 'Nº ' + String(no).padStart(2, '0');
+  $('no').textContent = 'Nº ' + no;
   $('kind').textContent = KIND_LABEL[it.tur];
   $('prev').disabled = state.pos <= 0; $('next').disabled = state.pos >= state.history.length - 1;
 }
@@ -335,7 +351,7 @@ async function yeni() {
   state.busy = true; $('stage').classList.add('busy'); $('loading').hidden = false;
   try {
     const it = await al(secTur());
-    state.count++; it.no = state.count;
+    state.count++; it.no = kartNo();
     state.history.push(it); if (state.history.length > 60) state.history.shift();
     state.pos = state.history.length - 1;
     goster(it, it.no); sayacBaslat();
@@ -343,6 +359,9 @@ async function yeni() {
     state.busy = false; $('stage').classList.remove('busy'); $('loading').hidden = true;
   }
 }
+/* Her girdiye sıra yerine rastgele bir kart numarası (oturumda tekrar etmez) */
+const verilenNo = new Set();
+function kartNo() { let n; do { n = 1000 + Math.floor(Math.random() * 9000); } while (verilenNo.has(n)); verilenNo.add(n); return n; }
 function gezin(d) {
   const p = state.pos + d; if (p < 0 || p >= state.history.length) return;
   state.pos = p; const it = state.history[p]; goster(it, it.no);
@@ -422,8 +441,8 @@ document.addEventListener('pointerdown', () => { try { navigator.wakeLock && nav
   setSource(false);
   // İlk girdi anında görünsün: arşivden bir görsel (varsa), yoksa kelime
   const ilk = havuzdan(Math.random() < 0.5 ? 'foto' : 'sanat') || kelime();
-  state.count = 1; ilk.no = 1; state.history.push(ilk); state.pos = 0;
-  state.kalan = state.sure; goster(ilk, 1); cizSayac();
+  state.count = 1; ilk.no = kartNo(); state.history.push(ilk); state.pos = 0;
+  state.kalan = state.sure; goster(ilk, ilk.no); cizSayac();
   doldur('foto'); doldur('sanat');
 })();
 </script>
